@@ -69,7 +69,6 @@ export default function WishlistPage() {
       item.customerId,
       productTitle,
       variantTitle,
-      item.quantity,
     ];
   });
 
@@ -184,16 +183,13 @@ export default function WishlistPage() {
                   "text",
                   "text",
                   "text",
-                  "numeric",
                 ]}
                 headings={[
-                  "Customer ID",
-                  "Product Title",
-                  "Variant Title",
-                  "Quantity",
+                  <Text fontWeight="bold">Customer ID</Text>,
+                  <Text fontWeight="bold">Product Title</Text>,
+                  <Text fontWeight="bold">Variant Title</Text>,
                 ]}
                 rows={rows}
-                increasedTableDensity
               />
             ) : (
               <Box
