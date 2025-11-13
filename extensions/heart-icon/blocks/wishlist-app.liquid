@@ -1,0 +1,1053 @@
+
+<div id="wishlist-app-embed">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+  <script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const isAppEnabled = {{ block.settings.enable_wishlist_app | default: false }};
+      if (!isAppEnabled) {
+        console.log('Wishlist App: Disabled');
+        return;
+      }
+
+      console.log('Wishlist App: Initializing...');
+
+      toastr.options = {
+        closeButton: true,
+        newestOnTop: true,
+        progressBar: true,
+        positionClass: 'toast-top-right',
+        showDuration: '300',
+        hideDuration: '1000',
+        timeOut: '3000',
+        extendedTimeOut: '1000',
+        showEasing: 'swing',
+        hideEasing: 'linear',
+        showMethod: 'fadeIn',
+        hideMethod: 'fadeOut',
+      };
+
+      const apiUrl = 'https://wishlist-hub.onrender.com';
+      const customerId = '{{ customer.id }}' || null;
+      
+      // ===== PRODUCT CARD HEART FUNCTIONALITY =====
+      {% if block.settings.show_on_product_card %}
+      const extractProductInfo = async (card) => {
+        let productId =
+          card.dataset.productId ||
+          card.getAttribute('data-product-id') ||
+          card.querySelector('input[type="hidden"][name*="product" i],input[type="hidden"][id*="product" i]')?.value ||
+          (() => {
+            let el = card.querySelector('[id^="CardLink-"],[id^="StandardCardNoMediaLink-"]');
+            if (el && el.id) {
+              let match = el.id.match(/-(\d+)$/);
+              return match ? match[1] : null;
+            }
+            return null;
+          })() ||
+          (() => {
+            let a = card.querySelector('a[href*="/products/"]');
+            if (a) {
+              return a.closest('div')?.querySelector('input[name="product-id"]')?.value || null;
+            }
+            return null;
+          })() ||
+          (() => {
+            let m = Array.from(card.querySelectorAll('[id]')).map(el => el.id.match(/\d{6,}/)).find(Boolean);
+            return m ? m[0] : null;
+          })() ||
+          null;
+       
+        let variantId =
+          card.querySelector('form[action*="/cart/add"] input[name="id"]')?.value ||
+          card.querySelector('input[name="id"][type="hidden"]')?.value ||
+          card.querySelector('select[name="id"] option[selected]')?.value ||
+          card.dataset.variantId ||
+          card.getAttribute('data-variant-id') ||
+          card.querySelector('button[name="id"]')?.value ||
+          card.querySelector('button[data-variant-id]')?.dataset.variantId ||
+          null;
+
+        if (!variantId) {
+          const productLink = card.querySelector('a.full-unstyled-link, a[href*="/products/"]');
+          if (productLink) {
+            const handle = productLink.getAttribute('href').split('/products/')[1]?.split('?')[0];
+            if (handle) {
+              try {
+                const res = await fetch(`/products/${handle}.js`);
+                if (res.ok) {
+                  const data = await res.json();
+                  variantId = data?.variants?.[0]?.id || null;
+                }
+              } catch (err) {
+                console.warn('Variant fetch failed:', err);
+              }
+            }
+          }
+        }
+
+        let productTitle =
+          card.dataset.productTitle ||
+          card.getAttribute('data-product-title') ||
+          card.querySelector('h2, h3, [class*="heading"], [class*="title"]')?.innerText?.trim() ||
+          card.querySelector('a.full-unstyled-link')?.innerText?.trim() ||
+          'Product';
+
+        let productImg =
+          card.dataset.productImg ||
+          card.querySelector('img')?.src ||
+          '';
+
+        let price = '';
+        const priceElement = card.querySelector('.price,[data-price],[class*="price"]');
+        if (priceElement) {
+          price = priceElement.textContent.replace(/[^\d.]/g, '');
+        } else {
+          price = card.dataset.price || card.getAttribute('data-price') || '';
+        }
+
+        if (price && !price.includes('.')) {
+          price = (parseFloat(price) / 100).toFixed(2);
+        }
+
+        let variantTitle = '';
+        if (variantId) {
+          const productLink = card.querySelector('a.full-unstyled-link, a[href*="/products/"]');
+          if (productLink) {
+            const handle = productLink.getAttribute('href').split('/products/')[1]?.split('?')[0];
+            if (handle) {
+              try {
+                const res = await fetch(`/products/${handle}.js`);
+                if (res.ok) {
+                  const data = await res.json();
+                  const variant = data?.variants?.find(v => String(v.id) === String(variantId));
+                  variantTitle = variant?.title || '';
+                }
+              } catch (err) {
+                console.warn('Variant details fetch failed:', err);
+              }
+            }
+          }
+        }
+
+        return { productId, variantId, productTitle, productImg, price, variantTitle };
+      };
+
+      const injectHeart = async (card) => {
+        if (card.querySelector('.catalog-heart')) return;
+
+        const { productId, variantId, productTitle, productImg, price, variantTitle } = await extractProductInfo(card);
+        if (!productId) return;
+
+        const heartDiv = document.createElement('div');
+        heartDiv.classList.add('catalog-heart');
+        heartDiv.dataset.customerId = customerId || '';
+        heartDiv.dataset.productId = productId;
+        heartDiv.dataset.variantId = variantId || '';
+        heartDiv.dataset.productTitle = productTitle;
+        heartDiv.dataset.price = price;
+        heartDiv.dataset.productImg = productImg;
+        heartDiv.dataset.variantTitle = variantTitle;
+        heartDiv.dataset.shop = '{{shop.id}}';
+
+        let position = '{{ block.settings.heart_position }}';
+        heartDiv.style.position = 'absolute';
+        if (position.includes('top')) heartDiv.style.top = '10px';
+        if (position.includes('bottom')) heartDiv.style.bottom = '10px';
+        if (position.includes('left')) heartDiv.style.left = '10px';
+        if (position.includes('right')) heartDiv.style.right = '10px';
+
+        if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
+
+        heartDiv.innerHTML = `
+          <div x-data="wishlist" x-init="init()" x-cloak>
+            <template x-if="!isWishlisted">
+              <div>
+                <svg @click="toggleWishlist()" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon-heart" aria-hidden="true">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
+                      2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09
+                      C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5
+                      c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              </div>
+            </template>
+            <template x-if="isWishlisted">
+              <div>
+                <svg @click="toggleWishlist()" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon-heart filled" aria-hidden="true">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
+                      2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09
+                      C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5
+                      c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              </div>
+            </template>
+          </div>
+        `;
+        card.appendChild(heartDiv);
+        
+        // Initialize Alpine if available
+        if (window.Alpine) {
+          setTimeout(() => {
+            Alpine.initTree(heartDiv);
+          }, 100);
+        }
+      };
+
+      const addHeartsToAllCards = () => {
+        const cards = document.querySelectorAll(
+          '.product-card, .card-wrapper, [data-product-id], [data-product-title]'
+        );
+        console.log(`Wishlist App: Found ${cards.length} product cards`);
+        cards.forEach((card) => {
+          const hasImg = card.querySelector('img');
+          if (hasImg) injectHeart(card);
+        });
+      };
+
+      // Initialize hearts with delay to ensure DOM is ready
+      setTimeout(addHeartsToAllCards, 500);
+
+      const cardObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (
+              node.nodeType === 1 &&
+              node.matches('.product-card, .grid__item, .card-wrapper, [data-product-id], [data-product-title]')
+            ) {
+              setTimeout(addHeartsToAllCards, 100);
+            }
+          });
+        });
+      });
+      cardObserver.observe(document.body, { childList: true, subtree: true });
+      {% endif %}
+
+      // ===== PRODUCT PAGE BUTTON FUNCTIONALITY =====
+      {% if block.settings.show_on_product_page %}
+      
+      // Function to get current variant ID from the product form
+      const getCurrentVariantId = () => {
+        // Try multiple ways to get the selected variant ID
+        const variantInput = document.querySelector('input[name="id"], input[name="variant_id"], input[name="variant-id"]');
+        if (variantInput && variantInput.value) {
+          return variantInput.value;
+        }
+
+        // Check for selected option in variant selects
+        const variantSelects = document.querySelectorAll('select[name^="option"], select[name="id"]');
+        for (const select of variantSelects) {
+          if (select.value) {
+            return select.value;
+          }
+        }
+
+        // Check for data attributes
+        const productForm = document.querySelector('[data-product-form]');
+        if (productForm && productForm.dataset.variantId) {
+          return productForm.dataset.variantId;
+        }
+
+        // Check for variant JSON data
+        const variantData = document.querySelector('[data-variant-json]');
+        if (variantData) {
+          try {
+            const variantJson = JSON.parse(variantData.textContent);
+            return variantJson.id;
+          } catch (e) {
+            console.warn('Could not parse variant JSON');
+          }
+        }
+
+        // Default to first variant if available in product JSON
+        const productData = document.querySelector('[data-product-json]');
+        if (productData) {
+          try {
+            const productJson = JSON.parse(productData.textContent);
+            return productJson.variants?.[0]?.id || null;
+          } catch (e) {
+            console.warn('Could not parse product JSON');
+          }
+        }
+
+        return null;
+      };
+
+      const injectWishlistButton = async () => {
+        console.log('Wishlist App: Attempting to inject product page button...');
+        
+        // More comprehensive product page detection
+        const isProductPage =
+          window.location.pathname.includes('/products/') ||
+          document.querySelector('[data-section-type="product-template"], [data-section-type="product"], .product, .product-page') ||
+          document.body.classList.contains('template-product');
+        
+        if (!isProductPage) {
+          console.log('Wishlist App: Not a product page, skipping button injection');
+          return;
+        }
+
+        // Try multiple selectors to find the product form or info container
+        const productContainerSelectors = [
+          '.product-form',
+          '.product__info-wrapper',
+          '.product__info-container',
+          '.product-single__meta',
+          '.product-details',
+          '[data-product-form]',
+          '.product-form__input',
+          '.product-block',
+          '.product-content'
+        ];
+        
+        let productContainer = null;
+        for (const selector of productContainerSelectors) {
+          productContainer = document.querySelector(selector);
+          if (productContainer) {
+            console.log('Wishlist App: Found product container with selector:', selector);
+            break;
+          }
+        }
+        
+        if (!productContainer) {
+          console.log('Wishlist App: Product container not found, trying fallback selectors');
+          // Fallback: look for add to cart button and use its container
+          const addToCartBtn = document.querySelector('button[name="add"], .product-form__submit, [type="submit"]');
+          if (addToCartBtn) {
+            productContainer = addToCartBtn.closest('form') || addToCartBtn.parentElement;
+            console.log('Wishlist App: Using add to cart button container');
+          }
+        }
+        
+        if (!productContainer) {
+          console.log('Wishlist App: Could not find suitable product container');
+          return;
+        }
+
+        // Check if button already exists
+        if (productContainer.querySelector('.wishlist-page-button')) {
+          console.log('Wishlist App: Button already exists');
+          return;
+        }
+
+        // Get product data from multiple possible sources
+        let productId = "{{ product.id }}" ||
+                       document.querySelector('[data-product-id]')?.dataset?.productId ||
+                       document.querySelector('input[name="product_id"], input[name="product-id"]')?.value;
+
+        let productTitle = "{{ product.title | escape }}" ||
+                          document.querySelector('.product-title, h1, [data-product-title]')?.textContent?.trim() ||
+                          document.querySelector('[class*="product-title"], [class*="product__title"]')?.textContent?.trim() ||
+                          'Product';
+
+        let productPrice = "{{ product.price }}" ||
+                          document.querySelector('.price, [data-price]')?.textContent?.replace(/[^\d.]/g, '') ||
+                          document.querySelector('[class*="price"]')?.textContent?.replace(/[^\d.]/g, '') ||
+                          '0';
+
+        if (productPrice && !productPrice.includes('.')) {
+          productPrice = (parseFloat(productPrice) / 100).toFixed(2);
+        }
+
+        let productImage = "{{ product.featured_image.src | img_url: 'large' }}" ||
+                          document.querySelector('.product-image img, [data-product-image]')?.src ||
+                          document.querySelector('[class*="product-image"] img')?.src ||
+                          '';
+
+        // Get current variant ID
+        let variantId = getCurrentVariantId();
+        console.log('Wishlist App: Current variant ID:', variantId);
+
+        // Get variant title using the same method as heart icons
+        let variantTitle = '';
+        if (variantId) {
+          const handle = window.location.pathname.split('/products/')[1]?.split('?')[0];
+          if (handle) {
+            try {
+              const res = await fetch(`/products/${handle}.js`);
+              if (res.ok) {
+                const data = await res.json();
+                const variant = data?.variants?.find(v => String(v.id) === String(variantId));
+                variantTitle = variant?.title || '';
+              }
+            } catch (err) {
+              console.warn('Variant details fetch failed:', err);
+            }
+          }
+        }
+
+        console.log('Wishlist App: Product data:', { productId, variantId, productTitle, productPrice, productImage, variantTitle });
+
+        if (!productId) {
+          console.log('Wishlist App: No product ID found, cannot create button');
+          return;
+        }
+
+        const buttonDiv = document.createElement('div');
+        buttonDiv.classList.add('wishlist-page-button');
+        buttonDiv.dataset.customerId = customerId || '';
+        buttonDiv.dataset.productId = productId;
+        buttonDiv.dataset.variantId = variantId || '';
+        buttonDiv.dataset.variantTitle = variantTitle;
+        buttonDiv.dataset.productTitle = productTitle;
+        buttonDiv.dataset.productPrice = productPrice;
+        buttonDiv.dataset.productImage = productImage;
+        buttonDiv.dataset.shop = '{{shop.id}}';
+
+        buttonDiv.innerHTML = `
+          <div x-data="wishlist" x-init="init(); setupVariantListener()" x-cloak>
+            <button type="button" @click="toggleWishlist"
+                    :style="'display: inline-flex; justify-content: center; align-items: center; width: 100%; padding: 12px; background-color: ' + (isWishlisted ? '{{ block.settings.button_bg_color_added }}' : '{{ block.settings.button_bg_color }}') + '; color: {{ block.settings.button_text_color }}; font-size: 16px; font-weight: 500; border: {{ block.settings.button_border_size | default: 0 }}px {{ block.settings.button_border_type | default: 'solid' }} {{ block.settings.button_border_color | default: '#000000' }}; border-radius: 4px; cursor: pointer; margin: 10px 0;'"
+                    x-text="isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style="margin-right: 8px;">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+              </svg>
+            </button>
+          </div>
+        `;
+
+        // Try to insert after add to cart button
+        const addToCartBtn = productContainer.querySelector('button[name="add"], .product-form__submit, [type="submit"]');
+        if (addToCartBtn) {
+          addToCartBtn.parentNode.insertBefore(buttonDiv, addToCartBtn.nextSibling);
+          console.log('Wishlist App: Button inserted after add to cart button');
+        } else {
+          // Insert at the end of the product container
+          productContainer.appendChild(buttonDiv);
+          console.log('Wishlist App: Button appended to product container');
+        }
+
+        // Initialize Alpine.js on the new element
+        if (window.Alpine) {
+          setTimeout(() => {
+            Alpine.initTree(buttonDiv);
+            console.log('Wishlist App: Alpine initialized on button');
+          }, 100);
+        }
+      };
+
+      // Function to update variant ID and title when customer selects different options
+      const setupVariantChangeListener = () => {
+        // Listen for changes on variant selects
+        const variantSelects = document.querySelectorAll('select[name^="option"], select[name="id"]');
+        variantSelects.forEach(select => {
+          select.addEventListener('change', () => {
+            setTimeout(() => {
+              const newVariantId = getCurrentVariantId();
+              console.log('Wishlist App: Variant changed to:', newVariantId);
+
+              // Update variant ID and title in the wishlist button
+              const wishlistButton = document.querySelector('.wishlist-page-button');
+              if (wishlistButton && newVariantId) {
+                wishlistButton.dataset.variantId = newVariantId;
+                console.log('Wishlist App: Updated button variant ID to:', newVariantId);
+
+                // Fetch and update variant title
+                let newVariantTitle = '';
+                const productData = document.querySelector('[data-product-json]');
+                if (productData) {
+                  try {
+                    const productJson = JSON.parse(productData.textContent);
+                    const variant = productJson.variants?.find(v => String(v.id) === String(newVariantId));
+                    newVariantTitle = variant?.title || '';
+                  } catch (e) {
+                    console.warn('Could not parse product JSON for new variant title');
+                  }
+                }
+                wishlistButton.dataset.variantTitle = newVariantTitle;
+                console.log('Wishlist App: Updated button variant title to:', newVariantTitle);
+
+                // Dispatch event to update Alpine component
+                document.dispatchEvent(new CustomEvent('variant:change', {
+                  detail: { variantId: newVariantId, variantTitle: newVariantTitle }
+                }));
+              }
+            }, 100);
+          });
+        });
+
+        // Also listen for changes on radio buttons if any
+        const variantRadios = document.querySelectorAll('input[type="radio"][name^="option"]');
+        variantRadios.forEach(radio => {
+          radio.addEventListener('change', () => {
+            setTimeout(() => {
+              const newVariantId = getCurrentVariantId();
+              console.log('Wishlist App: Variant changed to:', newVariantId);
+
+              const wishlistButton = document.querySelector('.wishlist-page-button');
+              if (wishlistButton && newVariantId) {
+                wishlistButton.dataset.variantId = newVariantId;
+                console.log('Wishlist App: Updated button variant ID to:', newVariantId);
+
+                // Fetch and update variant title
+                let newVariantTitle = '';
+                const productData = document.querySelector('[data-product-json]');
+                if (productData) {
+                  try {
+                    const productJson = JSON.parse(productData.textContent);
+                    const variant = productJson.variants?.find(v => String(v.id) === String(newVariantId));
+                    newVariantTitle = variant?.title || '';
+                  } catch (e) {
+                    console.warn('Could not parse product JSON for new variant title');
+                  }
+                }
+                wishlistButton.dataset.variantTitle = newVariantTitle;
+                console.log('Wishlist App: Updated button variant title to:', newVariantTitle);
+
+                // Dispatch event to update Alpine component
+                document.dispatchEvent(new CustomEvent('variant:change', {
+                  detail: { variantId: newVariantId, variantTitle: newVariantTitle }
+                }));
+              }
+            }, 100);
+          });
+        });
+      };
+
+      // Multiple attempts to inject button with increasing delays
+      const injectButtonWithRetry = (attempt = 1) => {
+        if (attempt > 5) {
+          console.log('Wishlist App: Max injection attempts reached');
+          return;
+        }
+        
+        setTimeout(() => {
+          if (!document.querySelector('.wishlist-page-button')) {
+            console.log(`Wishlist App: Injection attempt ${attempt}`);
+            injectWishlistButton();
+            
+            // If button is injected, setup variant change listener
+            if (document.querySelector('.wishlist-page-button')) {
+              setupVariantChangeListener();
+            }
+            
+            // If still not injected and we have attempts left, try again
+            if (!document.querySelector('.wishlist-page-button') && attempt < 5) {
+              injectButtonWithRetry(attempt + 1);
+            }
+          }
+        }, attempt * 500);
+      };
+
+      // Start injection process
+      injectButtonWithRetry();
+      
+      // Observe for dynamic content changes
+      const buttonObserver = new MutationObserver((mutations) => {
+        let shouldInject = false;
+        for (const mutation of mutations) {
+          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            for (const node of mutation.addedNodes) {
+              if (node.nodeType === 1 && (
+                node.querySelector?.('button[name="add"]') ||
+                node.querySelector?.('.product-form') ||
+                node.classList?.contains('product-form')
+              )) {
+                shouldInject = true;
+                break;
+              }
+            }
+          }
+          if (shouldInject) break;
+        }
+        if (shouldInject && !document.querySelector('.wishlist-page-button')) {
+          console.log('Wishlist App: Dynamic content detected, reinjecting button');
+          setTimeout(() => {
+            injectWishlistButton();
+            setupVariantChangeListener();
+          }, 500);
+        }
+      });
+
+      buttonObserver.observe(document.body, { 
+        childList: true, 
+        subtree: true 
+      });
+      {% endif %}
+    });
+
+    document.addEventListener('alpine:init', () => {
+      console.log('Wishlist App: Initializing Alpine data');
+      
+      Alpine.data('wishlist', () => ({
+        apiUrl: 'https://wishlist-hub.onrender.com',
+        customerId: null,
+        productId: null,
+        variantId: null,
+        productTitle: null,
+        price: null,
+        productImage: null,
+        wishlist: [],
+        allWishlistData: [],
+        isWishlisted: false,
+
+        async init() {
+          console.log('Wishlist App: Alpine init called');
+
+          // Determine if we're in a heart icon or button context
+          const heartEl = this.$el.closest('.catalog-heart');
+          const buttonEl = this.$el.closest('.wishlist-page-button');
+
+          if (heartEl) {
+            this.customerId = heartEl.dataset.customerId || null;
+            this.productId = heartEl.dataset.productId || null;
+            this.variantId = heartEl.dataset.variantId || null;
+            this.productTitle = heartEl.dataset.productTitle || '';
+            this.price = heartEl.dataset.price || '';
+            this.productImage = heartEl.dataset.productImg || '';
+            this.variantTitle = heartEl.dataset.variantTitle || '';
+            console.log('Wishlist App: Heart context - Product ID:', this.productId, 'Variant ID:', this.variantId);
+          } else if (buttonEl) {
+            this.customerId = buttonEl.dataset.customerId || null;
+            this.productId = buttonEl.dataset.productId || null;
+            this.variantId = buttonEl.dataset.variantId || null;
+            this.variantTitle = buttonEl.dataset.variantTitle || '';
+            this.productTitle = buttonEl.dataset.productTitle || '';
+            this.price = buttonEl.dataset.productPrice || '';
+            this.productImage = buttonEl.dataset.productImage || '';
+            console.log('Wishlist App: Button context - Product ID:', this.productId, 'Variant ID:', this.variantId);
+          } else {
+            console.log('Wishlist App: No context element found');
+            return;
+          }
+
+          // Migrate guest data to logged-in user if applicable
+          if (this.customerId && localStorage.getItem('guestWishlist')) {
+            const localStorageItems = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+            if (localStorageItems.length > 0) {
+              console.log('Wishlist App: Migrating localStorage data for customer:', this.customerId);
+              try {
+                const response = await fetch(`${this.apiUrl}/api/wishlist`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'MIGRATE', customerId: this.customerId, localStorageItems }),
+                  credentials: 'include',
+                });
+                if (response.ok) {
+                  localStorage.removeItem('guestWishlist');
+                  console.log('Wishlist App: Migration successful, localStorage cleared');
+                } else {
+                  console.error('Wishlist App: Migration failed');
+                }
+              } catch (error) {
+                console.error('Wishlist App: Migration error:', error);
+              }
+            }
+          }
+
+          await this.fetchWishlist();
+          this.isWishlisted = this.wishlist.includes(`${this.productId}-${this.variantId || ''}`);
+          console.log('Wishlist App: Initial wishlist status:', this.isWishlisted);
+
+          // Listen for wishlist updates to refresh heart/button state instantly
+          // Only add the event listener once per component instance
+          if (!this.eventListenerAdded) {
+            window.addEventListener('wishlist-updated', this.handleWishlistUpdate.bind(this));
+            this.eventListenerAdded = true;
+          }
+
+          // Refetch wishlist when page becomes visible (e.g., user navigates back)
+          window.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+              this.fetchWishlist();
+            }
+          });
+        },
+
+        async handleWishlistUpdate(event) {
+          console.log('Wishlist App: Received wishlist-updated event:', event.detail);
+          await this.fetchWishlist();
+          this.isWishlisted = this.wishlist.includes(`${this.productId}-${this.variantId || ''}`);
+          console.log('Wishlist App: Updated wishlist status after event:', this.isWishlisted);
+        },
+
+        // Setup variant change listener for product page button
+        setupVariantListener() {
+          const buttonEl = this.$el.closest('.wishlist-page-button');
+          if (!buttonEl) return;
+
+          // Listen for custom variant change events or DOM changes
+          document.addEventListener('variant:change', (event) => {
+            if (event.detail && event.detail.variantId) {
+              this.variantId = event.detail.variantId;
+              this.variantTitle = event.detail.variantTitle || '';
+              buttonEl.dataset.variantId = this.variantId;
+              buttonEl.dataset.variantTitle = this.variantTitle;
+              console.log('Wishlist App: Variant updated via event:', this.variantId, 'Title:', this.variantTitle);
+            }
+          });
+        },
+
+        async fetchWishlist() {
+          if (this.customerId) {
+            try {
+              const res = await fetch(`${this.apiUrl}/api/wishlist?customerId=${this.customerId}&shop={{shop.id}}`, {
+                credentials: 'include',
+              });
+              if (res.ok) {
+                const data = await res.json();
+                this.allWishlistData = data.wishlists || [];
+                this.wishlist = this.allWishlistData.map((i) => `${i.productId}-${i.variantId || ''}`);
+                console.log('Wishlist App: Fetched customer wishlist items:', this.wishlist.length);
+              }
+            } catch (e) {
+              console.error('Wishlist App: Error fetching wishlist:', e);
+            }
+          } else {
+            const guest = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+            this.allWishlistData = guest;
+            this.wishlist = guest.map((i) => `${i.productId}-${i.variantId || ''}`);
+            console.log('Wishlist App: Loaded guest wishlist items:', this.wishlist.length);
+          }
+        },
+
+        toggleWishlist() {
+          console.log('Wishlist App: Toggle clicked, current status:', this.isWishlisted);
+          console.log('Wishlist App: Current variant ID:', this.variantId);
+          this.isWishlisted ? this.remove() : this.addtoWishlist();
+        },
+
+        async addtoWishlist() {
+          console.log('Wishlist App: Adding to wishlist');
+          console.log('Wishlist App: Using variant ID:', this.variantId);
+          this.isWishlisted = true;
+          if (this.customerId) {
+            const formData = new FormData();
+            formData.append('customerId', this.customerId);
+            formData.append('isLoggedIn', 'true');
+            formData.append('productId', this.productId);
+            formData.append('variantId', this.variantId || '');
+            formData.append('variantTitle', this.variantTitle || '');
+            formData.append('productTitle', this.productTitle);
+            formData.append('quantity', '1');
+            formData.append('price', this.price);
+            formData.append('shop', '{{shop.id}}');
+            formData.append('productImage', this.productImage);
+            formData.append('_action', 'CREATE');
+            try {
+              const res = await fetch(`${this.apiUrl}/api/wishlist`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+              });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok && data.ok) {
+                await this.fetchWishlist();
+                toastr.success('Item Added to Wishlist!');
+                console.log('Wishlist App: Successfully added to wishlist');
+                window.dispatchEvent(new CustomEvent('wishlist-updated', { detail: { action: 'add' } }));
+              } else {
+                this.isWishlisted = false;
+                toastr.error('Failed to add');
+                console.log('Wishlist App: Failed to add to wishlist');
+              }
+            } catch (err) {
+              this.isWishlisted = false;
+              toastr.error('Error');
+              console.error('Wishlist App: Error adding to wishlist:', err);
+            }
+          } else {
+            const guest = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+            // Check if same product with same variant already exists
+            const existingIndex = guest.findIndex((i) =>
+              i.productId === this.productId && i.variantId === this.variantId
+            );
+
+            if (existingIndex === -1) {
+              guest.push({
+                productId: this.productId,
+                variantId: this.variantId || '',
+                variantTitle: this.variantTitle || '',
+                productTitle: this.productTitle,
+                price: this.price,
+                productImage: this.productImage,
+                quantity: 1,
+                shop: '{{shop.id}}',
+              });
+              localStorage.setItem('guestWishlist', JSON.stringify(guest));
+              this.allWishlistData = guest;
+              this.wishlist = guest.map((i) => `${i.productId}-${i.variantId || ''}`);
+              toastr.success('Item Added to Wishlist!');
+              console.log('Wishlist App: Added to guest wishlist with variant:', this.variantId);
+              window.dispatchEvent(new CustomEvent('wishlist-updated', { detail: { action: 'add' } }));
+            } else {
+              toastr.info('This variant is already in your wishlist!');
+              console.log('Wishlist App: Variant already in guest wishlist');
+            }
+          }
+        },
+
+        async remove() {
+          console.log('Wishlist App: Removing from wishlist');
+          console.log('Wishlist App: Removing variant ID:', this.variantId);
+          this.isWishlisted = false;
+          if (this.customerId) {
+            const formData = new FormData();
+            formData.append('customerId', this.customerId);
+            formData.append('isLoggedIn', 'true');
+            formData.append('productId', this.productId);
+            formData.append('variantId', this.variantId || '');
+            formData.append('variantTitle', this.variantTitle || '');
+            formData.append('shop', '{{shop.id}}');
+            formData.append('_action', 'DELETE');
+            try {
+              const res = await fetch(`${this.apiUrl}/api/wishlist`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+              });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok && data.ok) {
+                await this.fetchWishlist();
+                toastr.success('Item Removed from Wishlist!');
+                console.log('Wishlist App: Successfully removed from wishlist');
+                window.dispatchEvent(new CustomEvent('wishlist-updated', { detail: { action: 'remove' } }));
+              } else {
+                this.isWishlisted = true;
+                toastr.error('Failed to remove');
+                console.log('Wishlist App: Failed to remove from wishlist');
+              }
+            } catch (err) {
+              this.isWishlisted = true;
+              toastr.error('Error');
+              console.error('Wishlist App: Error removing from wishlist:', err);
+            }
+          } else {
+            const guest = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+            const idx = guest.findIndex((i) => 
+              i.productId === this.productId && i.variantId === this.variantId
+            );
+            if (idx > -1) {
+              guest.splice(idx, 1);
+              localStorage.setItem('guestWishlist', JSON.stringify(guest));
+              this.wishlist = guest.map((i) => `${i.productId}-${i.variantId || ''}`);
+              toastr.success('Item Removed from Wishlist!');
+              console.log('Wishlist App: Removed from guest wishlist');
+              window.dispatchEvent(new CustomEvent('wishlist-updated', { detail: { action: 'remove' } }));
+            } else {
+              this.isWishlisted = true;
+              toastr.error('Item not found');
+              console.log('Wishlist App: Item not found in guest wishlist');
+            }
+          }
+        },
+      }));
+    });
+  </script>
+
+  <style>
+    /* Heart icon styles */
+    .catalog-heart {
+      z-index: 10;
+      pointer-events: auto;
+      cursor: pointer;
+      padding: {{ block.settings.heart_padding_top | default: 0 }}px {{ block.settings.heart_padding_right | default: 0 }}px {{ block.settings.heart_padding_bottom | default: 0 }}px {{ block.settings.heart_padding_left | default: 0 }}px;
+      margin: {{ block.settings.heart_margin_top | default: 0 }}px {{ block.settings.heart_margin_right | default: 0 }}px {{ block.settings.heart_margin_bottom | default: 0 }}px {{ block.settings.heart_margin_left | default: 0 }}px;
+    }
+    .icon-heart { 
+      width: 24px; 
+      height: 24px; 
+      fill: none; 
+      stroke: {{ block.settings.heart_color | default: '#5e8e3e' }}; 
+      stroke-width: 2; 
+      cursor: pointer; 
+      transition: fill 0.3s, stroke 0.3s; 
+    }
+    .icon-heart.filled { 
+      fill: {{ block.settings.heart_fill_color | default: '#5e8e3e' }}; 
+      stroke: {{ block.settings.heart_fill_color | default: '#5e8e3e' }}; 
+    }
+    
+    /* Button styles */
+    .wishlist-page-button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+    }
+    .wishlist-page-button button {
+      transition: all 0.3s ease;
+    }
+    .wishlist-page-button button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    
+    /* Toast styles */
+    #toast-container > .toast {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      color: #333;
+      opacity: 1 !important;
+      filter: none !important;
+    }
+    #toast-container > .toast-success {
+      border-left: 4px solid #5e8e3e;
+    }
+    #toast-container > .toast-error {
+      border-left: 4px solid #d72c0d;
+    }
+    #toast-container > .toast-warning {
+      border-left: 4px solid #e6a700;
+    }
+    
+    [x-cloak] {
+      display: none !important;
+    }
+  </style>
+</div>
+
+{% schema %}
+{
+  "name": "Wishlist Control",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_wishlist_app",
+      "label": "Enable Wishlist App",
+      "default": true,
+      "info": "Toggle to enable/disable the entire wishlist functionality"
+    },
+    {
+      "type": "header",
+      "content": "Product Card Hearts"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_on_product_card",
+      "label": "Show hearts on product cards",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "heart_color",
+      "label": "Heart Icon Color",
+      "default": "#5e8e3e"
+    },
+    {
+      "type": "color",
+      "id": "heart_fill_color",
+      "label": "Filled Heart Color",
+      "default": "#5e8e3e"
+    },
+    {
+      "type": "select",
+      "id": "heart_position",
+      "label": "Heart Position on Product Card",
+      "options": [
+        { "value": "top-left", "label": "Top Left" },
+        { "value": "top-right", "label": "Top Right" },
+        { "value": "bottom-left", "label": "Bottom Left" },
+        { "value": "bottom-right", "label": "Bottom Right" }
+      ],
+      "default": "top-right"
+    },
+    {
+      "type": "header",
+      "content": "Heart Icon Styling"
+    },
+    {
+      "type": "header",
+      "content": "Heart Icon Padding (px)"
+    },
+    {
+      "type": "number",
+      "id": "heart_padding_top",
+      "label": "Top",
+      "default": 0
+    },
+    {
+      "type": "number",
+      "id": "heart_padding_right",
+      "label": "Right",
+      "default": 0
+    },
+    {
+      "type": "number",
+      "id": "heart_padding_bottom",
+      "label": "Bottom",
+      "default": 0
+    },
+    {
+      "type": "number",
+      "id": "heart_padding_left",
+      "label": "Left",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Heart Icon Margin (px)"
+    },
+    {
+      "type": "number",
+      "id": "heart_margin_top",
+      "label": "Top",
+      "default": 0
+    },
+    {
+      "type": "number",
+      "id": "heart_margin_right",
+      "label": "Right",
+      "default": 0
+    },
+    {
+      "type": "number",
+      "id": "heart_margin_bottom",
+      "label": "Bottom",
+      "default": 0
+    },
+    {
+      "type": "number",
+      "id": "heart_margin_left",
+      "label": "Left",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Product Page Button"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_on_product_page",
+      "label": "Show button on product pages",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Wishlist Button Styling"
+    },
+    {
+      "type": "color",
+      "id": "button_bg_color",
+      "label": "Button Background Color (Not Added)",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_bg_color_added",
+      "label": "Button Background Color (Added)",
+      "default": "#d72c0d"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button Text Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "button_border_color",
+      "label": "Button Border Color",
+      "default": "#000000"
+    },
+    {
+      "type": "number",
+      "id": "button_border_size",
+      "label": "Button Border Size (px)",
+      "default": 0
+    },
+  ]
+}
+{% endschema %}

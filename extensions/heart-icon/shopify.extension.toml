@@ -1,0 +1,25 @@
+name = "heart-icon"
+type = "theme"
+uid = "b9b55f55-2b9c-2c8f-cce7-8ff521f7c7c844ec7da6"
+
+[[blocks]]
+name   = "Wishlist Button"
+target = "product-card"         # or "product" if you prefer
+path   = "blocks/wishlist-button.liquid"
+
+[[blocks]]
+name   = "Wishlist Page"
+target = "page"
+path   = "blocks/wishlist-page.liquid"
+
+
+[[blocks]]
+name   = "Catlog Heart Icon"
+target = "product-card"
+path   = "blocks/heart-icon.liquid"
+
+[[blocks]]
+name   = "Star Rating"
+target = "body"
+path   = "blocks/star_rating.liquid"
+
