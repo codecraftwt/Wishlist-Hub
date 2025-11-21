@@ -244,11 +244,6 @@
 
       setTimeout(addHeartsToAllCards, 800);
 
-      const cardObserver = new MutationObserver(() => {
-        setTimeout(addHeartsToAllCards, 400);
-      });
-      cardObserver.observe(document.body, { childList: true, subtree: true });
-
       setTimeout(addHeartsToAllCards, 500);
 
       const cardObserver = new MutationObserver((mutations) => {
