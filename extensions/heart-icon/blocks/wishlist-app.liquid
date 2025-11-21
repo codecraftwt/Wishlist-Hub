@@ -140,6 +140,16 @@
       };
 
       const injectHeart = async (card) => {
+             if (
+               card.closest('header') ||
+               card.closest('nav') ||
+               card.closest('.site-header') ||
+               card.closest('.header') ||
+               card.closest('.banner') ||
+               card.closest('.hero')
+             ) {
+              return;
+         }
         if (card.querySelector('.catalog-heart')) return;
 
         const { productId, variantId, productTitle, productImg, price, variantTitle, currency } = await extractProductInfo(card);
@@ -200,27 +210,45 @@
         }
       };
 
-      const addHeartsToAllCards = () => {
-        const cards = document.querySelectorAll(
-          '.product-card, .card-wrapper, [data-product-id], [data-product-title], [data-section-type*="product"]'
-        );
-        console.log(`Wishlist App: Found ${cards.length} potential product cards`);
-        cards.forEach((card) => {
-         
-          if (card.closest('header, nav, .site-header, .header, .navigation, .menu, .banner, .hero')) {
-            console.log('Wishlist App: Skipping card in header/navigation area');
+          const addHeartsToAllCards = () => {
+        const cards = document.querySelectorAll('.card-wrapper, .product-card, .grid__item, [data-product-id]');
+
+        cards.forEach(card => {
+          if (
+            card.closest('header') ||
+            card.closest('nav') ||
+            card.closest('.site-header') ||
+            card.closest('.header') ||
+            card.closest('.announcement-bar') ||
+            card.closest('.banner') ||
+            card.closest('.hero') ||
+            card.closest('.slideshow') ||
+            card.closest('.collection-hero') ||
+            card.closest('.header__inline-menu') ||
+            card.closest('[class*="promo"]') ||
+            card.closest('[class*="featured-product"]') ||
+            card.closest('[class*="announcement"]')
+          ) {
             return;
           }
-          const hasImg = card.querySelector('img');
-          const hasProductLink = card.querySelector('a[href*="/products/"]');
-        
-          if (hasImg && hasProductLink) {
+
+          if (
+            !card.querySelector('.catalog-heart') &&
+            card.querySelector('a[href*="/products/"]') &&
+            card.querySelector('img')
+          ) {
             injectHeart(card);
           }
         });
       };
 
-      // Initialize hearts with delay to ensure DOM is ready
+      setTimeout(addHeartsToAllCards, 800);
+
+      const cardObserver = new MutationObserver(() => {
+        setTimeout(addHeartsToAllCards, 400);
+      });
+      cardObserver.observe(document.body, { childList: true, subtree: true });
+
       setTimeout(addHeartsToAllCards, 500);
 
       const cardObserver = new MutationObserver((mutations) => {
@@ -326,7 +354,6 @@
         
         if (!productContainer) {
           console.log('Wishlist App: Product container not found, trying fallback selectors');
-          // Fallback: look for add to cart button and use its container
           const addToCartBtn = document.querySelector('button[name="add"], .product-form__submit, [type="submit"]');
           if (addToCartBtn) {
             productContainer = addToCartBtn.closest('form') || addToCartBtn.parentElement;
@@ -922,6 +949,22 @@
     
     [x-cloak] {
       display: none !important;
+    }
+    header .catalog-heart,
+    nav .catalog-heart,
+    .site-header .catalog-heart,
+    .header .catalog-heart,
+    .announcement-bar .catalog-heart,
+    .banner .catalog-heart,
+    .hero .catalog-heart,
+    .slideshow .catalog-heart,
+    .collection-hero .catalog-heart,
+    [class*="promo"] .catalog-heart,
+    [class*="featured-product"] .catalog-heart,
+    [class*="announcement"] .catalog-heart {
+      display: none !important;
+      pointer-events: none !important;
+      opacity: 0 !important;
     }
   </style>
 </div>
