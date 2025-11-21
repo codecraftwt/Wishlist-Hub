@@ -102,9 +102,12 @@
           '';
 
         let price = '';
+        let currency = '{{ shop.currency | default: "USD" }}';
         const priceElement = card.querySelector('.price,[data-price],[class*="price"]');
         if (priceElement) {
-          price = priceElement.textContent.replace(/[^\d.]/g, '');
+          const fullPriceText = priceElement.textContent.trim();
+          
+          price = fullPriceText.replace(/[^\d.]/g, '');
         } else {
           price = card.dataset.price || card.getAttribute('data-price') || '';
         }
@@ -133,13 +136,13 @@
           }
         }
 
-        return { productId, variantId, productTitle, productImg, price, variantTitle };
+        return { productId, variantId, productTitle, productImg, price, variantTitle, currency };
       };
 
       const injectHeart = async (card) => {
         if (card.querySelector('.catalog-heart')) return;
 
-        const { productId, variantId, productTitle, productImg, price, variantTitle } = await extractProductInfo(card);
+        const { productId, variantId, productTitle, productImg, price, variantTitle, currency } = await extractProductInfo(card);
         if (!productId) return;
 
         const heartDiv = document.createElement('div');
@@ -149,6 +152,7 @@
         heartDiv.dataset.variantId = variantId || '';
         heartDiv.dataset.productTitle = productTitle;
         heartDiv.dataset.price = price;
+        heartDiv.dataset.currency = currency;
         heartDiv.dataset.productImg = productImg;
         heartDiv.dataset.variantTitle = variantTitle;
         heartDiv.dataset.shop = '{{shop.id}}';
@@ -200,10 +204,19 @@
         const cards = document.querySelectorAll(
           '.product-card, .card-wrapper, [data-product-id], [data-product-title]'
         );
-        console.log(`Wishlist App: Found ${cards.length} product cards`);
+        console.log(`Wishlist App: Found ${cards.length} potential product cards`);
         cards.forEach((card) => {
+         
+          if (card.closest('header, nav, .site-header, .header, .navigation, .menu, .banner, .hero')) {
+            console.log('Wishlist App: Skipping card in header/navigation area');
+            return;
+          }
           const hasImg = card.querySelector('img');
-          if (hasImg) injectHeart(card);
+          const hasProductLink = card.querySelector('a[href*="/products/"]');
+        
+          if (hasImg && hasProductLink) {
+            injectHeart(card);
+          }
         });
       };
 
@@ -351,6 +364,17 @@
           productPrice = (parseFloat(productPrice) / 100).toFixed(2);
         }
 
+        let currency = '{{ shop.currency }}';
+        const priceElement = document.querySelector('.price,[data-price],[class*="price"]');
+        if (priceElement) {
+          const fullPriceText = priceElement.textContent.trim();
+          currency = fullPriceText.replace(/[\d.,]/g, '').trim() || currency;
+        }
+     
+        if (!currency || currency === '') {
+          currency = '{{ shop.currency }}';
+        }
+
         let productImage = "{{ product.featured_image.src | img_url: 'large' }}" ||
                           document.querySelector('.product-image img, [data-product-image]')?.src ||
                           document.querySelector('[class*="product-image"] img')?.src ||
@@ -393,13 +417,14 @@
         buttonDiv.dataset.variantTitle = variantTitle;
         buttonDiv.dataset.productTitle = productTitle;
         buttonDiv.dataset.productPrice = productPrice;
+        buttonDiv.dataset.currency = currency;
         buttonDiv.dataset.productImage = productImage;
         buttonDiv.dataset.shop = '{{shop.id}}';
 
         buttonDiv.innerHTML = `
           <div x-data="wishlist" x-init="init(); setupVariantListener()" x-cloak>
             <button type="button" @click="toggleWishlist"
-                    :style="'display: inline-flex; justify-content: center; align-items: center; width: 100%; padding: 12px; background-color: ' + (isWishlisted ? '{{ block.settings.button_bg_color_added }}' : '{{ block.settings.button_bg_color }}') + '; color: {{ block.settings.button_text_color }}; font-size: 16px; font-weight: 500; border: {{ block.settings.button_border_size | default: 0 }}px {{ block.settings.button_border_type | default: 'solid' }} {{ block.settings.button_border_color | default: '#000000' }}; border-radius: 4px; cursor: pointer; margin: 10px 0;'"
+                    :style="'display: inline-flex; justify-content: center; align-items: center; width: 100%; padding: 12px; height: {{ block.settings.button_height | default: 48 }}px; background-color: ' + (isWishlisted ? '{{ block.settings.button_bg_color_added }}' : '{{ block.settings.button_bg_color }}') + '; color: {{ block.settings.button_text_color }}; font-size: 16px; font-weight: 500; border: {{ block.settings.button_border_size | default: 0 }}px {{ block.settings.button_border_type | default: 'solid' }} {{ block.settings.button_border_color | default: '#000000' }}; border-radius: {{ block.settings.button_border_radius | default: 4 }}px; cursor: pointer; margin: 10px 0;'"
                     x-text="isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style="margin-right: 8px;">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
@@ -596,6 +621,7 @@
             this.variantId = heartEl.dataset.variantId || null;
             this.productTitle = heartEl.dataset.productTitle || '';
             this.price = heartEl.dataset.price || '';
+            this.currency = heartEl.dataset.currency || '';
             this.productImage = heartEl.dataset.productImg || '';
             this.variantTitle = heartEl.dataset.variantTitle || '';
             console.log('Wishlist App: Heart context - Product ID:', this.productId, 'Variant ID:', this.variantId);
@@ -606,6 +632,7 @@
             this.variantTitle = buttonEl.dataset.variantTitle || '';
             this.productTitle = buttonEl.dataset.productTitle || '';
             this.price = buttonEl.dataset.productPrice || '';
+            this.currency = buttonEl.dataset.currency || '';
             this.productImage = buttonEl.dataset.productImage || '';
             console.log('Wishlist App: Button context - Product ID:', this.productId, 'Variant ID:', this.variantId);
           } else {
@@ -715,6 +742,7 @@
           this.isWishlisted = true;
           if (this.customerId) {
             const formData = new FormData();
+            try {
             formData.append('customerId', this.customerId);
             formData.append('isLoggedIn', 'true');
             formData.append('productId', this.productId);
@@ -723,10 +751,10 @@
             formData.append('productTitle', this.productTitle);
             formData.append('quantity', '1');
             formData.append('price', this.price);
+            formData.append('currency', this.currency || '{{ shop.currency }}');
             formData.append('shop', '{{shop.id}}');
             formData.append('productImage', this.productImage);
             formData.append('_action', 'CREATE');
-            try {
               const res = await fetch(`${this.apiUrl}/api/wishlist`, {
                 method: 'POST',
                 body: formData,
@@ -863,14 +891,14 @@
     /* Button styles */
     .wishlist-page-button {
       display: block;
-      width: 100%;
       margin: 10px 0;
     }
     .wishlist-page-button button {
       transition: all 0.3s ease;
     }
     .wishlist-page-button button:hover {
-      opacity: 0.9;
+      background-color: {{ block.settings.button_hover_bg_color | default: '#333333' }} !important;
+      color: {{ block.settings.button_hover_text_color | default: '#ffffff' }} !important;
       transform: translateY(-1px);
     }
     
@@ -1047,6 +1075,41 @@
       "id": "button_border_size",
       "label": "Button Border Size (px)",
       "default": 0
+    },
+    {
+      "type": "number",
+      "id": "button_border_radius",
+      "label": "Button Border Radius (px)",
+      "default": 4
+    },
+    {
+      "type": "select",
+      "id": "button_border_type",
+      "label": "Button Border Type",
+      "options": [
+        { "value": "solid", "label": "Solid" },
+        { "value": "dashed", "label": "Dashed" },
+        { "value": "dotted", "label": "Dotted" }
+      ],
+      "default": "solid"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_bg_color",
+      "label": "Button Hover Background Color",
+      "default": "#333333"
+    },
+    {
+      "type": "number",
+      "id": "button_height",
+      "label": "Button Height (px)",
+      "default": 48
+    },
+     {
+      "type": "color",
+      "id": "button_hover_text_color",
+      "label": "Button Hover Text Color",
+      "default": "#ffffff"
     },
   ]
 }

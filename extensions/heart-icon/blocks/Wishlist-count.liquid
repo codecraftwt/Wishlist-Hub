@@ -3,6 +3,7 @@
   x-data="wishlistCounter()"
   x-init="init()"
   @wishlist-updated.window="handleUpdate($event.detail)"
+  data-shop-currency="{{ shop.currency }}"
 >
   <button
     @click="goToWishlist()"
@@ -42,6 +43,7 @@
   <div
     class="wishlist-slider-overlay"
     x-show="showSlider"
+    x-cloak
     x-transition:enter="transition ease-in-out duration-400"
     x-transition:enter-start="opacity-0"
     x-transition:enter-end="opacity-100"
@@ -54,6 +56,7 @@
     class="wishlist-slider"
     @click.stop
     x-show="showSlider"
+    x-cloak
     style="{% if block.settings.slide_direction == 'left' %}left: 0; right: auto;{% else %}right: 0; left: auto;{% endif %}"
     x-transition:enter="transition ease-out duration-1000"
     x-transition:enter-start="opacity-0 {% if block.settings.slide_direction == 'left' %}translate-x-[-100%] {% else %}translate-x-[100%] {% endif %}scale-90 rotate-[-5deg]"
@@ -87,7 +90,7 @@
             <img :src="item.productImage" :alt="item.productTitle" width="80" height="80" class="item-image">
             <div class="item-details">
               <h3 x-text="item.productTitle"></h3>
-              <p class="price">Price: $<span x-text="item.price ? parseFloat(item.price).toFixed(2) : 'N/A'"></span></p>
+              <p class="price">Price: <span x-text="getCurrencySymbol(item.currency || this.currency) + (item.price ? parseFloat(item.price).toFixed(2) : 'N/A')"></span></p>
               <div class="item-actions">
                 <button @click="addToCart(item)" class="add-to-cart-btn">
                   <svg
@@ -152,6 +155,7 @@
       apiUrl: 'https://wishlist-hub.onrender.com',
       customerId: '{{ customer.id }}',
       shop: '{{ shop.id }}',
+      currency: null,
       count: 0,
       wishlistItems: [],
       showSlider: false,
@@ -160,6 +164,7 @@
 
 
       async init() {
+        this.currency = document.querySelector('[data-shop-currency]').getAttribute('data-shop-currency') || 'USD';
         if (this.isLoggedIn && localStorage.getItem('guestWishlist')) {
           const localStorageItems = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
           if (localStorageItems.length > 0) {
@@ -184,6 +189,94 @@
         } else {
           this.loadFromLocalStorage();
         }
+      },
+
+      getCurrencySymbol() {
+        const symbols = {
+          'USD': '$',
+          'EUR': '€',
+          'GBP': '£',
+          'JPY': '¥',
+          'CAD': 'C$',
+          'AUD': 'A$',
+          'CHF': 'CHF',
+          'CNY': '¥',
+          'INR': '₹',
+          'BRL': 'R$',
+          'MXN': '$',
+          'KRW': '₩',
+          'RUB': '₽',
+          'ZAR': 'R',
+          'TRY': '₺',
+          'SEK': 'kr',
+          'NOK': 'kr',
+          'DKK': 'kr',
+          'PLN': 'zł',
+          'CZK': 'Kč',
+          'HUF': 'Ft',
+          'ILS': '₪',
+          'SAR': '﷼',
+          'AED': 'د.إ',
+          'THB': '฿',
+          'VND': '₫',
+          'IDR': 'Rp',
+          'MYR': 'RM',
+          'PHP': '₱',
+          'SGD': 'S$',
+          'HKD': 'HK$',
+          'TWD': 'NT$',
+          'NZD': 'NZ$',
+          'EGP': 'E£',
+          'ARS': '$',
+          'CLP': '$',
+          'COP': '$',
+          'PEN': 'S/',
+          'UYU': '$U',
+          'PYG': '₲',
+          'BOB': 'Bs.',
+          'VES': 'Bs.',
+          'CRC': '₡',
+          'NIO': 'C$',
+          'SVC': '$',
+          'PAB': 'B/.',
+          'GTQ': 'Q',
+          'HNL': 'L',
+          'BZD': 'BZ$',
+          'JMD': 'J$',
+          'TTD': 'TT$',
+          'XCD': 'EC$',
+          'BSD': 'B$',
+          'KYD': 'CI$',
+          'ANG': 'ƒ',
+          'AWG': 'ƒ',
+          'BBD': 'Bds$',
+          'BMD': 'BD$',
+          'BTN': 'Nu.',
+          'GEL': '₾',
+          'ISK': 'kr',
+          'KZT': '₸',
+          'LAK': '₭',
+          'LKR': '₨',
+          'MKD': 'ден',
+          'MNT': '₮',
+          'NPR': '₨',
+          'PKR': '₨',
+          'RON': 'lei',
+          'RSD': 'дин',
+          'TJS': 'ЅМ',
+          'TMT': 'T',
+          'UAH': '₴',
+          'UZS': 'so\'m',
+          'VUV': 'VT',
+          'WST': 'WS$',
+          'XAF': 'FCFA',
+          'XOF': 'CFA',
+          'XPF': '₣',
+          'YER': '﷼',
+          'ZMW': 'ZK',
+          'ZWD': 'Z$'
+        };
+        return symbols[this.currency] || '$';
       },
 
       loadFromLocalStorage() {
@@ -369,6 +462,7 @@
 </script>
 
 <style>
+  [x-cloak] { display: none !important; }
   .wishlist-counter {
     position: fixed;
     z-index: 1000;

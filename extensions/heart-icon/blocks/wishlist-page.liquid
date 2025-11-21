@@ -4,6 +4,7 @@
   x-init="initialize()"
   data-customer-id="{{ customer.id }}"
   data-shop="{{ shop.id }}"
+  data-shop-currency="{{ shop.currency }}"
 >
   <div class="title-button">
     <h1 style="font-size: 2rem; margin-bottom: 1rem;">Your Wishlist</h1>
@@ -36,7 +37,7 @@
         <div class="card-content">
           <h2 class="card-title" x-text="product.productTitle"></h2>
           <div class="card-details">
-            <div class="price">Price: $<span x-text="product.price.toFixed(2)"></span></div>
+            <div class="price">Price: <span x-text="getCurrencySymbol() + product.price.toFixed(2)"></span></div>
             <div class="qty">Qty: <span x-text="product.quantity"></span></div>
           </div>
           <div class="card-actions">
@@ -49,12 +50,12 @@
 </section>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
-<script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 <!-- [Rest of your HTML remains unchanged] -->
-<script>
+<script defer>
   toastr.options = {
     closeButton: true,
     newestOnTop: true,
@@ -76,11 +77,13 @@
       loading: false,
       customerId: null,
       shop: null,
+      currency: null,
       apiUrl: "https://wishlist-hub.onrender.com",
 
       async initialize() {
         this.customerId = this.$el.dataset.customerId || null;
         this.shop = this.$el.dataset.shop || null;
+        this.currency = this.$el.dataset.shopCurrency || 'USD';
 
         // Listen for wishlist updates from other components
         window.addEventListener('wishlist-updated', (event) => {
@@ -360,6 +363,94 @@
         } catch (err) {
           console.error('Cart load error:', err);
         }
+      },
+
+      getCurrencySymbol() {
+        const symbols = {
+          'USD': '$',
+          'EUR': '€',
+          'GBP': '£',
+          'JPY': '¥',
+          'CAD': 'C$',
+          'AUD': 'A$',
+          'CHF': 'CHF',
+          'CNY': '¥',
+          'INR': '₹',
+          'BRL': 'R$',
+          'MXN': '$',
+          'KRW': '₩',
+          'RUB': '₽',
+          'ZAR': 'R',
+          'TRY': '₺',
+          'SEK': 'kr',
+          'NOK': 'kr',
+          'DKK': 'kr',
+          'PLN': 'zł',
+          'CZK': 'Kč',
+          'HUF': 'Ft',
+          'ILS': '₪',
+          'SAR': '﷼',
+          'AED': 'د.إ',
+          'THB': '฿',
+          'VND': '₫',
+          'IDR': 'Rp',
+          'MYR': 'RM',
+          'PHP': '₱',
+          'SGD': 'S$',
+          'HKD': 'HK$',
+          'TWD': 'NT$',
+          'NZD': 'NZ$',
+          'EGP': 'E£',
+          'ARS': '$',
+          'CLP': '$',
+          'COP': '$',
+          'PEN': 'S/',
+          'UYU': '$U',
+          'PYG': '₲',
+          'BOB': 'Bs.',
+          'VES': 'Bs.',
+          'CRC': '₡',
+          'NIO': 'C$',
+          'SVC': '$',
+          'PAB': 'B/.',
+          'GTQ': 'Q',
+          'HNL': 'L',
+          'BZD': 'BZ$',
+          'JMD': 'J$',
+          'TTD': 'TT$',
+          'XCD': 'EC$',
+          'BSD': 'B$',
+          'KYD': 'CI$',
+          'ANG': 'ƒ',
+          'AWG': 'ƒ',
+          'BBD': 'Bds$',
+          'BMD': 'BD$',
+          'BTN': 'Nu.',
+          'GEL': '₾',
+          'ISK': 'kr',
+          'KZT': '₸',
+          'LAK': '₭',
+          'LKR': '₨',
+          'MKD': 'ден',
+          'MNT': '₮',
+          'NPR': '₨',
+          'PKR': '₨',
+          'RON': 'lei',
+          'RSD': 'дин',
+          'TJS': 'ЅМ',
+          'TMT': 'T',
+          'UAH': '₴',
+          'UZS': 'so\'m',
+          'VUV': 'VT',
+          'WST': 'WS$',
+          'XAF': 'FCFA',
+          'XOF': 'CFA',
+          'XPF': '₣',
+          'YER': '﷼',
+          'ZMW': 'ZK',
+          'ZWD': 'Z$'
+        };
+        return symbols[this.currency] || '$';
       },
 
       triggerCartUpdate(cartData) {
