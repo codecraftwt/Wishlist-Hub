@@ -106,14 +106,12 @@
         const priceElement = card.querySelector('.price,[data-price],[class*="price"]');
         if (priceElement) {
           const fullPriceText = priceElement.textContent.trim();
-          
-          price = fullPriceText.replace(/[^\d.]/g, '');
+
+          price = fullPriceText.replace(/[^\d.,]/g, '').replace(',', '.');
+          price = parseFloat(price || 0).toFixed(2);
         } else {
           price = card.dataset.price || card.getAttribute('data-price') || '';
-        }
-
-        if (price && !price.includes('.')) {
-          price = (parseFloat(price) / 100).toFixed(2);
+          price = parseFloat(price || 0).toFixed(2);
         }
 
         let variantTitle = '';
