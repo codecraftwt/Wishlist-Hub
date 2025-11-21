@@ -202,7 +202,7 @@
 
       const addHeartsToAllCards = () => {
         const cards = document.querySelectorAll(
-          '.product-card, .card-wrapper, [data-product-id], [data-product-title]'
+          '.product-card, .card-wrapper, [data-product-id], [data-product-title], [data-section-type*="product"]'
         );
         console.log(`Wishlist App: Found ${cards.length} potential product cards`);
         cards.forEach((card) => {
@@ -228,7 +228,7 @@
           mutation.addedNodes.forEach((node) => {
             if (
               node.nodeType === 1 &&
-              node.matches('.product-card, .grid__item, .card-wrapper, [data-product-id], [data-product-title]')
+              node.matches('.product-card, .grid__item, .card-wrapper, [data-product-id], [data-product-title], [data-section-type*="product"]')
             ) {
               setTimeout(addHeartsToAllCards, 100);
             }
