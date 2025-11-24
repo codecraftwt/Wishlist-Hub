@@ -106,6 +106,7 @@
         let productPriceText = "{{ product.price }}" ||
                                card.querySelector('.price, [data-price], [class*="price"]')?.textContent?.trim() ||
                                card.querySelector('[class*="price"]')?.textContent?.trim() ||
+                               card.querySelector('.featured-product-price, .featured-price, .price-featured')?.textContent?.trim() || 
                                '';
 
         if (productPriceText) {
@@ -230,7 +231,7 @@
             card.closest('.collection-hero') ||
             card.closest('.header__inline-menu') ||
             card.closest('[class*="promo"]') ||
-            card.closest('[class*="featured-product"]') ||
+            // card.closest('[class*="featured-product"]') ||    
             card.closest('[class*="announcement"]')
           ) {
             return;
