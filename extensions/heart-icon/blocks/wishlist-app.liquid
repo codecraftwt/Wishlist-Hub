@@ -107,12 +107,8 @@
         if (priceElement) {
           const fullPriceText = priceElement.textContent.trim();
 
-          let rawPrice = fullPriceText.replace(/[^\d.]/g, '');
-          if (rawPrice && !rawPrice.includes('.')) {
-            price = (parseFloat(rawPrice) / 100).toFixed(2);
-          } else {
-            price = parseFloat(rawPrice || 0).toFixed(2);
-          }
+          price = fullPriceText.replace(/[^\d.]/g, '');
+          price = parseFloat(price || 0).toFixed(2);
         } else {
           price = card.dataset.price || card.getAttribute('data-price') || '';
           price = parseFloat(price || 0).toFixed(2);
@@ -448,7 +444,7 @@
         buttonDiv.innerHTML = `
           <div x-data="wishlist" x-init="init(); setupVariantListener()" x-cloak>
             <button type="button" @click="toggleWishlist"
-                    :style="'display: inline-flex; justify-content: center; align-items: center; width: 100%; padding: 12px; height: ' + {{ block.settings.button_height | default: 48 }} + 'px; background-color: ' + (isWishlisted ? '{{ block.settings.button_bg_color_added }}' : '{{ block.settings.button_bg_color }}') + '; color: {{ block.settings.button_text_color }}; font-size: 16px; font-weight: 500; border: ' + {{ block.settings.button_border_size | default: 0 }} + 'px ' + '{{ block.settings.button_border_type | default: "solid" }}' + ' ' + '{{ block.settings.button_border_color | default: "#000000" }}' + '; border-radius: ' + {{ block.settings.button_border_radius | default: 4 }} + 'px; cursor: pointer; margin: 10px 0;'"
+                    :style="'display: inline-flex; justify-content: center; align-items: center; width: 100%; padding: 12px; height: {{ block.settings.button_height | default: 48 }}px; background-color: ' + (isWishlisted ? '{{ block.settings.button_bg_color_added }}' : '{{ block.settings.button_bg_color }}') + '; color: {{ block.settings.button_text_color }}; font-size: 16px; font-weight: 500; border: {{ block.settings.button_border_size | default: 0 }}px {{ block.settings.button_border_type | default: 'solid' }} {{ block.settings.button_border_color | default: '#000000' }}; border-radius: {{ block.settings.button_border_radius | default: 4 }}px; cursor: pointer; margin: 10px 0;'"
                     x-text="isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style="margin-right: 8px;">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
