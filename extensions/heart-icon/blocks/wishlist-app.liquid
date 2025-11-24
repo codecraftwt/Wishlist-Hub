@@ -103,13 +103,11 @@
 
         let price = '';
         let currency = '{{ shop.currency | default: "USD" }}';
-        let productPriceText = "{{ product.price }}" ||
-                               card.querySelector('.price, [data-price], [class*="price"]')?.textContent?.trim() ||
-                               card.querySelector('[class*="price"]')?.textContent?.trim() ||
-                               '';
+        const priceElement = card.querySelector('.price,[data-price],[class*="price"]');
+        if (priceElement) {
+          const fullPriceText = priceElement.textContent.trim();
 
-        if (productPriceText) {
-          let rawPrice = productPriceText.replace(/[^\d.]/g, '');
+          let rawPrice = fullPriceText.replace(/[^\d.]/g, '');
           if (rawPrice && !rawPrice.includes('.')) {
             price = (parseFloat(rawPrice) / 100).toFixed(2);
           } else {
