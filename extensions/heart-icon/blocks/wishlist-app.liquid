@@ -106,13 +106,37 @@
         const priceElement = card.querySelector('.price,[data-price],[class*="price"]');
         if (priceElement) {
           const fullPriceText = priceElement.textContent.trim();
+    console.log('Full price text:', fullPriceText);
+    
+    const currencyMatch = fullPriceText.match(/[^\d\s.,]+/);
+    if (currencyMatch) {
+      currency = currencyMatch[0].trim();
+    }
+    
+    const priceMatch = fullPriceText.match(/[\d,]+\.?\d*/);
+    if (priceMatch) {
+      const rawPrice = priceMatch[0].replace(/,/g, '');
+      price = parseFloat(rawPrice).toFixed(2);
+      console.log('Parsed price:', price, 'from raw:', rawPrice);
+    }
+  } else {
+    const dataPrice = card.dataset.price || card.getAttribute('data-price') || '';
+    if (dataPrice) {
+      const rawPrice = dataPrice.toString().replace(/,/g, '');
+      price = parseFloat(rawPrice || 0).toFixed(2);
+    } else {
+      price = '0.00';
+    }
+  }
 
-          price = fullPriceText.replace(/[^\d.]/g, '');
-          price = parseFloat(price || 0).toFixed(2);
-        } else {
-          price = card.dataset.price || card.getAttribute('data-price') || '';
-          price = parseFloat(price || 0).toFixed(2);
-        }
+  if (price && parseFloat(price) < 1 && parseFloat(price) > 0) {
+    console.log('Price seems too small, checking if in cents:', price);
+    const alternativePrice = card.querySelector('[data-price]')?.dataset.price;
+    if (alternativePrice) {
+      const rawPrice = alternativePrice.toString().replace(/,/g, '');
+      price = (parseFloat(rawPrice) / 100).toFixed(2);
+    }
+  }
 
         let variantTitle = '';
         if (variantId) {
