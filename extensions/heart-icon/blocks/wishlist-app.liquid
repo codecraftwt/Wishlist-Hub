@@ -172,7 +172,9 @@
              ) {
               return;
          }
-        if (card.querySelector('.catalog-heart')) return;
+        if (card.querySelector('.catalog-heart') || card.dataset.heartInjecting) return;
+
+        card.dataset.heartInjecting = 'true';
 
         const { productId, variantId, productTitle, productImg, price, variantTitle, currency } = await extractProductInfo(card);
         if (!productId) return;
@@ -232,8 +234,8 @@
         }
       };
 
-          const addHeartsToAllCards = () => {
-        const cards = document.querySelectorAll('.card-wrapper, .product-card, .grid__item');
+      const addHeartsToAllCards = () => {
+        const cards = document.querySelectorAll('.card-wrapper, .product-card');
 
         cards.forEach(card => {
           if (
@@ -251,6 +253,10 @@
             card.closest('[class*="featured-product"]') ||
             card.closest('[class*="announcement"]')
           ) {
+            return;
+          }
+
+          if (card.querySelector('.card-wrapper, .product-card')) {
             return;
           }
 
